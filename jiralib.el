@@ -197,6 +197,12 @@ The default value works if JIRA is located at a hostname named
   :type 'integer
   :group 'jiralib)
 
+(defcustom jiralib-cloud-enabled
+  t
+  "If enabled then cloud restAPI calls will be made"
+  :type 'boolean
+  :group 'jiralib)
+
 (defvar jiralib-token nil
   "JIRA token used for authentication.")
 
@@ -941,11 +947,15 @@ Return nil if the field is not found"
         when (rassoc account-id user)
         return (cdr (assoc 'displayName user))))
 
+(defun jiralib-get-account-sym ()
+  "Return user account symbol based upon Cloud/Server patform setting"
+  (if jiralib-cloud-enabled 'accountId 'name))
+
 (defun jiralib-get-user-account-id (project full-name)
-    "Return the account-id (accountId) of the user with FULL-NAME (displayName) in PROJECT."
+  "Return the account-id (accountId) of the user with FULL-NAME (displayName) in PROJECT."
   (cl-loop for user in (jiralib-get-users project)
-        when (rassoc full-name user)
-        return (cdr (assoc 'accountId user))))
+           when (rassoc full-name user)
+           return (cdr (assoc (jiralib-get-account-sym) user))))
 
 (defun jiralib-get-filter (filter-id)
   "Return a filter given its FILTER-ID."
@@ -1100,7 +1110,7 @@ Return no more than MAX-NUM-RESULTS."
 (defun jiralib-get-user (account-id)
   "Return a user's information given their full name."
   (cond ((eq 0 (length account-id)) nil) ;; Unassigned
-        (t (jiralib-call "getUser" nil account-id))))
+        (t (jiralib-call "getUser" nil (jiralib-get-account-sym)))))
 
 (defvar jiralib-users-cache nil "Cached list of users.")
 
