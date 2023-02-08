@@ -624,16 +624,16 @@ it isn't already on."
    org-jira-users
    (mapcar (lambda (user)
              (cons (org-jira-decode (cdr (assoc 'displayName user)))
-                   (org-jira-decode (cdr (assoc 'accountId user)))))
+                   (org-jira-decode (cdr (assoc (jiralib-get-account-sym) user)))))
            (jiralib-get-users project-key))))
-
+   
 (defun org-jira-get-reporter-candidates (project-key)
   "Get the list of assignable users for PROJECT-KEY, adding user set jira-users first."
   (append
    org-jira-users
    (mapcar (lambda (user)
              (cons (org-jira-decode (cdr (assoc 'displayName user)))
-                   (org-jira-decode (cdr (assoc 'accountId user)))))
+                   (org-jira-decode (cdr (assoc (jiralib-get-account-sym) user)))))
            (jiralib-get-users project-key))))
 
 (defun org-jira-entry-put (pom property value)
@@ -1796,6 +1796,7 @@ that should be bound to an issue."
   (let* ((project-components (jiralib-get-components project))
          (jira-users (org-jira-get-assignable-users project))
          (user (completing-read "Assignee: " (mapcar 'car jira-users)))
+         (asym (jiralib-get-account-sym))
          (priority (car (rassoc (org-jira-read-priority) (jiralib-get-priorities))))
          (ticket-struct
           `((fields
@@ -1811,7 +1812,7 @@ that should be bound to an issue."
              (description . ,description)
              (priority (id . ,priority))
              ;; accountId should be nil if Unassigned, not the key slot.
-             (assignee (accountId . ,(or (cdr (assoc user jira-users)) nil)))))))
+             (assignee (,(jiralib-get-account-sym) . ,(or (cdr (assoc user jira-users)) nil)))))))
     ticket-struct))
 
 ;;;###autoload
@@ -2205,21 +2206,20 @@ otherwise it should return:
 
       ;; Send the update to jira
       (let ((update-fields
-             (list (cons
+                 (list (cons
                     'components
                     (or (org-jira-build-components-list
                          project-components
                          org-issue-components) []))
                    (cons 'labels (split-string org-issue-labels ",\\s *"))
                    (cons 'priority (org-jira-get-id-name-alist org-issue-priority
-                                                       (jiralib-get-priorities)))
+                                                               (jiralib-get-priorities)))
                    (cons 'description org-issue-description)
-                   (cons 'assignee (list (cons 'id (jiralib-get-user-account-id project org-issue-assignee))))
-                   (cons 'reporter (list (cons 'id (jiralib-get-user-account-id project org-issue-reporter))))
+                   (cons 'assignee (list (cons (jiralib-get-account-sym) (jiralib-get-user-account-id project org-issue-assignee))))
+                   (cons 'reporter (list (cons (jiralib-get-account-sym) (jiralib-get-user-account-id project org-issue-reporter))))
                    (cons 'summary (org-jira-strip-priority-tags (org-jira-get-issue-val-from-org 'summary)))
                    (cons 'issuetype `((id . ,org-issue-type-id)
-      (name . ,org-issue-type))))))
-
+                                      (name . ,org-issue-type))))))
 
         ;; If we enable duedate sync and we have a deadline present
         (when (and org-jira-deadline-duedate-sync-p
@@ -2243,8 +2243,6 @@ otherwise it should return:
               (-> cb-data list org-jira-get-issues))))
          ))
       )))
-
-
 
 (defun org-jira-parse-issue-id ()
   "Get issue id from org text."
